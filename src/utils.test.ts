@@ -151,3 +151,38 @@ Deno.test("read/write helpers handle bigint conversion", async () => {
     assertEquals(readBigInt(toBuffer(sessionKey)), sessionKey);
   });
 });
+
+Deno.test("toBuffer and pad support core utility inputs", async () => {
+  await withTmpHome(async () => {
+    const { pad, powermod, mod, randomBytes, toBuffer } = await import(
+      "./utils.ts"
+    );
+
+    assertEquals(toBuffer(true).toJSON().data, [1]);
+    assertEquals(toBuffer(false).toJSON().data, [0]);
+    assertEquals(toBuffer(255n).toJSON().data, [255]);
+    assertEquals(pad(Buffer.from([0x01, 0x02]), 4).toJSON().data, [
+      0,
+      0,
+      1,
+      2,
+    ]);
+    assertEquals(randomBytes(8).length, 8);
+    assertEquals(mod(-5n, 7n), 2n);
+    assertEquals(powermod(2n, 5n, 13n), 6n);
+  });
+});
+
+Deno.test("writeConfig rejects malformed payload and clears broken file", async () => {
+  await withTmpHome(async () => {
+    const { APWError } = await import("./const.ts");
+    const { clearConfig, readConfig } = await import("./utils.ts");
+    const path = `${Deno.env.get("HOME")}/.apw/config.json`;
+
+    clearConfig();
+    await Deno.mkdir(`${Deno.env.get("HOME")}/.apw`, { recursive: true });
+    await Deno.writeTextFile(path, "{bad-json");
+
+    assertThrows(() => readConfig({ requireAuth: true }), APWError);
+  });
+});
