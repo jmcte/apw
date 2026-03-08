@@ -26,7 +26,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message as WebSocketMessage};
 
 const COMMAND_TIMEOUT_MS: u64 = 30_000;
 const LAUNCH_PROBE_TIMEOUT_MS: u64 = 1_000;
-const LAUNCH_PROBE_RESPONSE_TIMEOUT_MS: u64 = 2_000;
+const LAUNCH_PROBE_RESPONSE_TIMEOUT_MS: u64 = 5_000;
 const PROCESS_STATUS_RETRY_LIMIT: u8 = 40;
 const PROCESS_STATUS_RETRY_DELAY_MS: u64 = 25;
 const MAX_HELPER_PAYLOAD: usize = 16 * 1024;
@@ -945,15 +945,16 @@ fn is_manifest(value: &Value) -> bool {
     allowed_origins.iter().all(|value| value.is_string())
 }
 
+#[cfg(not(target_os = "macos"))]
 fn read_manifest() -> Result<ManifestConfig> {
-    #[cfg(not(target_os = "macos"))]
-    {
-        return Err(APWError::new(
-            Status::GenericError,
-            "APW Helper manifest unsupported outside of macOS.",
-        ));
-    }
+    Err(APWError::new(
+        Status::GenericError,
+        "APW Helper manifest unsupported outside of macOS.",
+    ))
+}
 
+#[cfg(target_os = "macos")]
+fn read_manifest() -> Result<ManifestConfig> {
     let path = MANIFEST_PATHS
         .iter()
         .copied()
@@ -1768,11 +1769,14 @@ mod tests {
     #[cfg(unix)]
     use tokio_tungstenite::{connect_async, tungstenite::Message as TestWebSocketMessage};
 
+    static TEST_HOME_LOCK: StdMutex<()> = StdMutex::new(());
+
     #[cfg(unix)]
     fn with_temp_home<F, R>(run: F) -> R
     where
         F: FnOnce(&Path) -> R,
     {
+        let _guard = TEST_HOME_LOCK.lock().unwrap();
         let temp = tempdir().unwrap();
         let previous_home = env::var("HOME").ok();
         env::set_var("HOME", temp.path());
@@ -2033,6 +2037,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn resolve_runtime_mode_auto_prefers_browser_on_macos_26() {
         set_macos_major_override_for_tests(Some(26));
         assert_eq!(
@@ -2044,6 +2049,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    #[serial]
     fn probe_helper_launch_succeeds_after_capabilities_probe() {
         let context = probe_helper_context(
             "#!/usr/bin/perl\nbinmode STDIN;\nbinmode STDOUT;\nselect(STDOUT);\n$| = 1;\nread(STDIN, my $lenbuf, 4) == 4 or exit 1;\nmy $len = unpack(\"V\", $lenbuf);\nread(STDIN, my $payload, $len) == $len or exit 1;\nmy $json = q({\"ok\":true,\"code\":0,\"payload\":{\"canFillOneTimeCodes\":true}});\nprint pack(\"V\", length($json));\nprint $json;\nsleep 5;\n",
@@ -2056,6 +2062,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    #[serial]
     fn probe_helper_launch_reports_exit_before_probe_reply() {
         let context = probe_helper_context("#!/bin/sh\nexit 0\n");
 
@@ -2069,6 +2076,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    #[serial]
     fn probe_helper_launch_rejects_malformed_probe_payload() {
         let context = probe_helper_context(
             "#!/bin/sh\nexec perl -e 'binmode STDIN; binmode STDOUT; select(STDOUT); $| = 1; read(STDIN, my $lenbuf, 4) == 4 or exit 1; my $len = unpack(\"V\", $lenbuf); read(STDIN, my $payload, $len) == $len or exit 1; my $json = q(not-json); print pack(\"V\", length($json)); print $json; sleep 5;'\n",
@@ -2084,6 +2092,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    #[serial]
     fn probe_helper_launch_preserves_sigkill_probe_failure_message() {
         let context = probe_helper_context(
             "#!/bin/sh\nexec perl -e 'binmode STDIN; read(STDIN, my $lenbuf, 4) == 4 or exit 1; my $len = unpack(\"V\", $lenbuf); read(STDIN, my $payload, $len) == $len or exit 1; kill 9, $$;'\n",
