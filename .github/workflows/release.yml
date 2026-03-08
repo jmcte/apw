@@ -1,0 +1,144 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify version sync
+        run: |
+          chmod +x ./.github/scripts/verify-version-sync.sh
+          ./.github/scripts/verify-version-sync.sh \
+            rust/Cargo.toml \
+            rust/src/cli.rs \
+            rust/src/main.rs \
+            packaging/homebrew/apw.rb \
+            README.md \
+            docs/INSTALLATION.md \
+            docs/MIGRATION_AND_PARITY.md
+
+      - name: Verify archive policy documentation is present
+        run: |
+          rg -n "Legacy archive policy|legacy/deno/.*read-only|First-run policy" docs/ARCHIVE_POLICY.md
+
+      - name: Run verification
+        run: |
+          cargo fmt --manifest-path rust/Cargo.toml -- --check
+          cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
+          cargo test --manifest-path rust/Cargo.toml
+          cargo test --manifest-path rust/Cargo.toml --test legacy_parity
+          cargo test --manifest-path rust/Cargo.toml --test security_regressions
+
+      - name: Build release binary
+        run: cargo build --manifest-path rust/Cargo.toml --release
+
+      - name: Build local source tarball for Homebrew smoke
+        id: source_tarball
+        run: |
+          archive="/tmp/apw-${GITHUB_REF_NAME}.tar.gz"
+          git archive --format=tar.gz -o "$archive" HEAD
+          echo "path=$archive" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(shasum -a 256 "$archive" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Validate source tarball includes Rust manifest
+        run: |
+          archive="${{ steps.source_tarball.outputs.path }}"
+          normalized_paths="$(tar -tzf "$archive" | sed -E 's#^./##')"
+          missing=0
+          required=(
+            "rust/Cargo.toml"
+            "rust/src/main.rs"
+            "rust/src/cli.rs"
+          )
+          for path in "${required[@]}"; do
+            if ! echo "$normalized_paths" | grep -qE "(^|/)$(printf '%s' "$path" | sed 's#/#\\\\/#g')$"; then
+              echo "Missing required path in release tarball: $path"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Release tarball is missing required Rust source files. Aborting release."
+            echo "Hint: ensure the Rust migration is present in the commit being released."
+            exit 1
+          fi
+
+      - name: Resolve release version
+        id: release_version
+        run: |
+          version="$(grep '^version = ' rust/Cargo.toml | head -n 1 | sed -E 's/^version = \"([^\"]+)\"/\\1/')"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag vs manifest version
+        run: |
+          expected_tag="v${{ steps.release_version.outputs.value }}"
+          if [ "${{ github.ref_name }}" != "$expected_tag" ]; then
+            echo "Release tag mismatch: expected ${expected_tag}, got ${{ github.ref_name }}"
+            exit 1
+          fi
+
+      - name: Verify binary and status JSON
+        run: |
+          ./rust/target/release/apw --version
+          ./rust/target/release/apw status --json
+
+      - name: Homebrew smoke install from source tarball
+        env:
+          APW_SRC_TARBALL: ${{ steps.source_tarball.outputs.path }}
+          APW_SRC_SHA256: ${{ steps.source_tarball.outputs.sha256 }}
+        run: |
+          tap_path="$(brew --repository)/Library/Taps/local/homebrew-apw-smoke"
+          mkdir -p "$tap_path/Formula"
+          cat > /tmp/apw-homebrew-smoke.rb <<EOF
+          class Apw < Formula
+            desc "Apple Password CLI and daemon (macOS-first)"
+            homepage "${{ github.server_url }}/${{ github.repository }}"
+            url "file://$APW_SRC_TARBALL"
+            sha256 "$APW_SRC_SHA256"
+            version "${{ steps.release_version.outputs.value }}"
+            license "GPL-3.0-only"
+            depends_on "rust" => :build
+
+            on_macos do
+            end
+
+            def install
+              system "cargo", "build", "--manifest-path", "rust/Cargo.toml", "--release"
+              bin.install "rust/target/release/apw"
+            end
+
+            test do
+              assert_match(/^apw/, shell_output("#{bin}/apw --version"))
+            end
+          end
+          EOF
+          cp /tmp/apw-homebrew-smoke.rb "$tap_path/Formula/apw.rb"
+          brew install --build-from-source local/apw-smoke/apw
+          apw --version
+          apw status --json
+          brew uninstall --ignore-dependencies local/apw-smoke/apw || true
+          rm -rf "$tap_path"
+
+      - name: Package release archive
+        run: |
+          mkdir -p dist
+          cp rust/target/release/apw dist/apw
+          tar -czf dist/apw-macos-${GITHUB_REF_NAME}.tar.gz -C dist apw
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/apw-macos-${{ github.ref_name }}.tar.gz

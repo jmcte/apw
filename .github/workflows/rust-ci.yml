@@ -1,29 +1,20 @@
-name: Rust checks
+name: Rust
 
-on:
-  pull_request:
+on: push
+
+permissions:
+  contents: write
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Setup repo
+        uses: actions/checkout@v3
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
-      - name: Verify version sync
-        run: |
-          chmod +x ./.github/scripts/verify-version-sync.sh
-          ./.github/scripts/verify-version-sync.sh \
-            rust/Cargo.toml \
-            rust/src/cli.rs \
-            rust/src/main.rs \
-            packaging/homebrew/apw.rb \
-            README.md \
-            docs/INSTALLATION.md \
-            docs/MIGRATION_AND_PARITY.md
 
       - name: Rust format check
         run: cargo fmt --manifest-path rust/Cargo.toml -- --check
@@ -33,9 +24,6 @@ jobs:
 
       - name: Rust tests
         run: cargo test --manifest-path rust/Cargo.toml
-
-      - name: Rust legacy parity tests
-        run: cargo test --manifest-path rust/Cargo.toml --test legacy_parity
 
       - name: Rust security regression tests
         run: cargo test --manifest-path rust/Cargo.toml --test security_regressions

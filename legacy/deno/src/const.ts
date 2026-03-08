@@ -1,4 +1,4 @@
-export const DATA_PATH = `${Deno.env.get("HOME")}/.apw`;
+export const DATA_PATH = () => `${Deno.env.get("HOME")}/.apw`;
 
 export const VERSION = "1.0.1";
 
@@ -66,6 +66,10 @@ export enum Status {
   UNKNOWN_ACTION = 8,
   INVALID_SESSION = 9,
   SERVER_ERROR = 100,
+  COMMUNICATION_TIMEOUT = 101,
+  INVALID_CONFIG = 102,
+  PROCESS_NOT_RUNNING = 103,
+  PROTO_INVALID_RESPONSE = 104,
 }
 
 export const StatusMap = {
@@ -80,4 +84,29 @@ export const StatusMap = {
   [Status.UNKNOWN_ACTION]: "Unknown action requested",
   [Status.INVALID_SESSION]: "Invalid session, reauthenticate with `apw auth`",
   [Status.SERVER_ERROR]: "Server error",
+  [Status.COMMUNICATION_TIMEOUT]: "Communication timeout",
+  [Status.INVALID_CONFIG]: "Stored configuration is invalid",
+  [Status.PROCESS_NOT_RUNNING]: "Helper process not running",
+  [Status.PROTO_INVALID_RESPONSE]: "Invalid response payload",
+};
+
+export const normalizeStatus = (status: unknown): Status => {
+  if (typeof status === "number" && Number.isInteger(status)) {
+    return Object.values(Status).includes(status)
+      ? status
+      : Status.GENERIC_ERROR;
+  }
+
+  return Status.GENERIC_ERROR;
+};
+
+export const describeStatus = (status: unknown): string => {
+  return StatusMap[normalizeStatus(status)] ?? "Unknown status";
+};
+
+export const statusText = (
+  status: Status | number,
+  fallback = "Unknown status",
+): string => {
+  return StatusMap[normalizeStatus(status)] ?? fallback;
 };

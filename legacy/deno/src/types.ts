@@ -1,4 +1,5 @@
 import { Status } from "./const.ts";
+import type { SecretSource } from "./secrets.ts";
 
 export interface RenamedPasswordEntry {
   username: string;
@@ -19,6 +20,8 @@ export interface TOTPEntry {
   domain: string;
 }
 
+export type MessagePayload = SMSG | string | SRPHandshakeMessage;
+
 export interface Payload {
   STATUS: Status;
   Entries: PasswordEntry[] | TOTPEntry[];
@@ -36,12 +39,14 @@ export interface Capabilities {
 }
 export interface PAKEMessage {
   TID: string;
-  MSG: number;
+  MSG: number | string;
   A: string;
   s: string;
   B: string;
-  VER: string;
+  VER?: number | string;
   PROTO: number;
+  HAMK?: string;
+  ErrCode?: number | string;
 }
 
 export interface SMSG {
@@ -59,7 +64,7 @@ export interface SRPHandshakeMessage {
 
 export interface Message {
   cmd: number;
-  payload?: SRPHandshakeMessage | string | SMSG;
+  payload?: MessagePayload;
   msg?: SRPHandshakeMessage | string;
   capabilities?: Capabilities;
   setUpTOTPPageURL?: string;
@@ -77,11 +82,42 @@ export interface ManifestConfig {
   allowedOrigins: string[];
 }
 
+export interface APWConfigV1 {
+  schema: 1;
+  port: number;
+  host: string;
+  username: string;
+  sharedKey?: string;
+  secretSource?: SecretSource;
+  createdAt: string;
+}
+
 export interface APWConfig {
   port?: number;
-  sharedKey: string;
-  username: string;
+  sharedKey?: string;
+  username?: string;
 }
+
+export interface APWErrorShape {
+  code: Status;
+  message: string;
+}
+
+export interface APWResponseEnvelope<T = MessagePayload> {
+  ok: boolean;
+  code: Status;
+  payload?: T;
+  error?: string;
+  requestId?: string;
+}
+
+export type RequestResult<T> = {
+  ok: true;
+  data: T;
+} | {
+  ok: false;
+  error: APWErrorShape;
+};
 
 export interface SRPValues {
   username?: string;

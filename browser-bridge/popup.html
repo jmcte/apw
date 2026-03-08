@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>APW Bridge</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #f4efe6;
+        color: #1d1a15;
+      }
+
+      main {
+        width: 320px;
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      p {
+        margin: 0 0 12px;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      label {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      input {
+        padding: 8px 10px;
+        border: 1px solid #b8b0a3;
+        border-radius: 8px;
+        background: #fffdf8;
+        font-size: 13px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: #1d1a15;
+        color: #fffdf8;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 10px;
+        margin: 0 0 12px;
+        font-size: 12px;
+      }
+
+      dt {
+        font-weight: 700;
+      }
+
+      dd {
+        margin: 0;
+        text-transform: none;
+      }
+
+      .error {
+        min-height: 18px;
+        color: #8f1d1d;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>APW Chrome Bridge</h1>
+      <p>Use the daemon host and port from <code>apw status --json</code>. The default APW listener is <code>127.0.0.1:10000</code>.</p>
+
+      <dl>
+        <dt>WebSocket</dt>
+        <dd id="websocket-status">idle</dd>
+        <dt>Native Host</dt>
+        <dd id="native-status">idle</dd>
+        <dt>Queue</dt>
+        <dd id="queue-depth">0</dd>
+      </dl>
+
+      <div class="grid">
+        <label>
+          Host
+          <input id="host" type="text" spellcheck="false" value="127.0.0.1" />
+        </label>
+        <label>
+          Port
+          <input id="port" type="number" min="1" max="65535" value="10000" />
+        </label>
+      </div>
+
+      <button id="save" type="button">Save and Reconnect</button>
+      <p class="error" id="last-error"></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "@omt/apw-browser-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test bridge-controller.test.js"
+  }
+}

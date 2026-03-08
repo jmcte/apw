@@ -19,6 +19,13 @@ yarn-error.log
 
 # Build output
 dist
+target
+rust/target
+build/
+
+# Legacy Deno archive outputs
+legacy/deno/target
+legacy/deno/.cache
 
 # Other
 *.psd

@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://github.com/bendews/apw">
+  <a href="https://github.com/omt-global/apw-native">
     <img src="icon.png" alt="Logo" width="80" height="80">
   </a>
 
@@ -8,14 +8,14 @@
 <p align="center">
     A CLI for access to Apple Passwords. A foundation for enabling integration and automation.
     <br />
-    <a href="https://github.com/bendews/apw"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/omt-global/apw-native"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/bendews/apw">View Demo</a>
+    <a href="https://github.com/omt-global/apw-native">View Demo</a>
     ·
-    <a href="https://github.com/bendews/apw/issues">Report Bug</a>
+    <a href="https://github.com/omt-global/apw-native/issues">Report Bug</a>
     ·
-    <a href="https://github.com/bendews/apw/issues">Request Feature</a>
+    <a href="https://github.com/omt-global/apw-native/issues">Request Feature</a>
   </p>
 
 [![Contributors][contributors-shield]][contributors-url]
@@ -35,6 +35,11 @@ OTP tokens. The core objective is to provide a secure and straightforward way to
 retrieve iCloud passwords, facilitating integration with other systems or for
 personal convenience.
 
+This repository is now a Rust-first implementation (`rust/`). The original
+TypeScript/Deno implementation is retained as a read-only archive under
+`legacy/deno/` for behavior audit and rollback reference only.
+[See the archive policy](docs/ARCHIVE_POLICY.md) for the canonical archived path and rules.
+
 It utilises a built in helper tool in macOS 14 and above to facilitate this
 functionality.
 
@@ -42,22 +47,69 @@ https://github.com/user-attachments/assets/8cb45571-d164-4e28-aa6e-64d27705d6d2
 
 ## Getting Started
 
-Ensure homebrew is installed or build `apw` from source.
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for current install, Homebrew,
+and local run instructions.
 
 ### Installation
 
-To install APW and configure it to run automatically at system startup, follow
-these steps using Homebrew:
+#### Homebrew (recommended for day-to-day)
 
-1. Install APW:
-   ```
-   brew install bendews/homebrew-tap/apw
-   ```
+This repo does not ship a maintained public tap by default. For your fork, you can:
 
-2. Enable the APW service to start on boot:
-   ```
-   brew services start apw
-   ```
+```shell
+brew tap <you>/apw-native
+brew install <you>/apw-native/apw-native  # once formula is published in your fork tap
+brew services start apw
+```
+
+or validate local source installation with:
+
+```shell
+./packaging/homebrew/install-from-source.sh
+```
+
+The template points to release tarballs by default. Update `homepage`, `url`, and `sha256`
+before publishing in your own tap.
+
+#### Source install
+
+From the repo root:
+
+```shell
+cd rust
+cargo build --release
+cp target/release/apw /usr/local/bin/apw  # or any PATH directory
+```
+
+or
+
+```shell
+cargo install --path rust
+```
+
+### Version policy
+
+This fork is now at Release reference version: `v1.2.0`.
+
+Release bumps are controlled by CI policy:
+
+- Merge-safe patch PRs (tests/docs/hardening): bump patch versions.
+- Feature/compatibility-impacting PRs: bump minor versions.
+- Never reuse or regress below the highest existing repository tag.
+
+When bumping, update all version surfaces listed in the CI sync check:
+
+- `rust/Cargo.toml`
+- `rust/src/main.rs` (`APP_VERSION`)
+- `packaging/homebrew/apw.rb` (`version` and tag URL)
+- `README.md`, `docs/INSTALLATION.md`, `docs/MIGRATION_AND_PARITY.md` release reference line.
+
+Recommended merge-time gate:
+
+1. Update all version surfaces
+2. Run `./.github/scripts/verify-version-sync.sh rust/Cargo.toml rust/src/cli.rs rust/src/main.rs packaging/homebrew/apw.rb README.md docs/INSTALLATION.md docs/MIGRATION_AND_PARITY.md`
+3. Build a release binary and verify `./rust/target/release/apw --version` reports the same version before tagging.
+4. Optional: run `./scripts/release-bootstrap.sh --tag vX.Y.Z --push --publish` for local release artifact publish (requires `gh` CLI).
 
 ## Integrations
 
@@ -75,13 +127,17 @@ The following are some future integration ideas:
 ## Usage
 
 Ensure the daemon is running in the background, either via
-`brew services start apw` or `apw start`.
+`brew services start apw` (Homebrew) or `apw start`.
 
 To authenticate the daemon interactively:
 
 _This is required every time the daemon starts i.e on boot_
 
 `apw auth`
+
+Logout when a machine is handed over:
+
+`apw auth logout`
 
 Query for available passwords (Interactive):
 
@@ -104,33 +160,164 @@ Options:
 Commands:
 
   auth   - Authenticate CLI with daemon.         
+  status - Show daemon and session status.
   pw     - Interactively list accounts/passwords.
   otp    - Interactively list accounts/OTPs.     
   start  - Start the daemon.
+
+Authentication/session status:
+
+- `apw status` shows daemon host/port and stored session metadata.
+- `apw status --json` returns machine-readable output.
+
+On macOS 26.x, `auto` now resolves to a browser-backed runtime instead of trying
+to launch Apple’s helper directly from `apw`. Direct CLI launch remains available
+as a legacy diagnostic mode (`--runtime-mode direct` or `launchd`), but the
+default supported path is:
+
+1. Install the per-user native messaging manifest:
+   `./scripts/install-browser-bridge.sh`
+2. Load the unpacked extension from `browser-bridge/` in
+   `chrome://extensions`.
+3. Start the daemon:
+   `apw start`
+4. Wait for `apw status --json` to report:
+   `bridge.status=attached`
+5. Authenticate:
+   `apw auth`
+
+Status output now includes a top-level `bridge` object:
+
+- `bridge.status`
+- `bridge.browser`
+- `bridge.connectedAt`
+- `bridge.lastError`
+
+If helper-backed commands run before Chrome attaches, they fail with
+`ProcessNotRunning` and browser-specific remediation instead of a generic session
+error. If the daemon is up but you have not re-authenticated since startup, the
+CLI now tells you explicitly:
+
+- `Daemon is running but not authenticated. Run \`apw auth\`.`
+
+Direct helper launch is still useful for diagnosing host policy failures. On an
+affected host, run:
+
+- `apw start --runtime-mode direct --dry-run`
+- `apw status --json`
+- `ls -t ~/Library/Logs/DiagnosticReports | rg "PasswordManagerBrowserExtensionHelper" | head -n 5`
+
+If the direct helper still reports
+`Helper process was terminated by SIGKILL (Code Signature Constraint Violation).`,
+that confirms the host requires the browser/native-host parent path rather than
+the legacy CLI launch path.
+
+To verify, inspect the latest crash report entries:
+
+```bash
+ls -t ~/Library/Logs/DiagnosticReports | rg \"PasswordManagerBrowserExtensionHelper\" | head -n 5
+```
+
+If this helper constraint is new in your environment, capture this for the next
+release cycle; the Rust CLI is behaving as intended and the fix requires host
+policy/browser-framework changes rather than CLI logic changes.
+
+Security and storage:
+
+- Config data is stored in `~/.apw/config.json`.
+- `.apw` directory is created with mode `0700`.
+- `config.json` is written with mode `0600` and replaced atomically.
+- On macOS, `sharedKey` is persisted in the user keychain and `config.json`
+  keeps only key metadata (`secretSource`).
+- On non-macOS or legacy configs, `sharedKey` remains in `config.json` as before.
+- Invalid or stale config (including missing session values, malformed timestamps or schema drift) is cleared and requires re-authentication.
 ```
 
 <!-- CONTRIBUTING -->
 
 ## Building
 
-This project uses Deno for development and compilation. Make sure you have Deno
-installed on your system before proceeding.
+This project ships a native Rust implementation in `rust/` for the primary CLI
+daemon and runtime path.
+
+## Legacy Deno Archive
+
+The archived Deno implementation lives in `legacy/deno/` and is intentionally
+frozen. It is not used by CI or normal install flows.
+
+Use `legacy/deno/` only when you need a behavior audit or to diff the old and
+new CLI flow.
+
+Archive rules for this path are documented in
+`docs/ARCHIVE_POLICY.md`.
+
+Archive policy:
+
+- `legacy/deno/` is immutable by default and should not receive new feature work.
+- No compatibility behavior changes should be introduced there unless required for
+  reproducible historical inspection.
+- Rust (`rust/`) is the only maintained path for bug fixes, hardening, releases,
+  and packaging.
+
+First-run rule:
+
+- On first run, follow only the Rust path and ignore `legacy/deno/` unless you are
+  explicitly doing an optional compatibility audit.
 
 ### Running the Project
 
 To run the project whilst developing:
 
 ```
-deno run --allow-all src/cli.ts <OPTIONS>
+cargo run --manifest-path rust/Cargo.toml -- <OPTIONS>
 ```
+
+Daemon startup and CLI examples:
+
+- `apw start --bind 127.0.0.1 --port 0`
+- `apw auth --pin 123456`
 
 ### Building a release version
 
-To build a statically compiled binary:
+To run full local release bootstrap (version sync + fmt/clippy/tests + build + tag + Homebrew smoke):
+
+```bash
+./scripts/release-bootstrap.sh
+```
+
+To build just a release binary:
 
 ```
-deno compile --allow-all -o apw src/cli.ts
+cargo build --manifest-path rust/Cargo.toml --release
 ```
+
+The resulting binary is at `rust/target/release/apw`.
+
+## Rust migration checks
+
+Use this matrix before shipping a new fork:
+
+- `auth request` / `auth response`
+- `auth logout`
+- `status`
+- `pw list`
+- `pw get`
+- `otp list`
+- `otp get`
+
+Suggested parity workflow:
+
+- run the Rust suite:
+  - `cargo test --manifest-path rust/Cargo.toml`
+- run migration compatibility checks that use archived fixtures:
+  - `cargo test --manifest-path rust/Cargo.toml --test legacy_parity`
+- optional legacy audit (manual only): run the archived suite in `legacy/deno/`
+  when Deno is installed and you need direct behavioral re-checks.
+
+For a full parity checklist and handoff notes, see
+`docs/MIGRATION_AND_PARITY.md`.
+For security regression and release hardening checks, see
+`docs/SECURITY_POSTURE_AND_TESTING.md`.
 
 ## Contributing
 
@@ -156,7 +343,7 @@ Distributed under the GPL V3.0 License. See `LICENSE` for more information.
 
 Ben Dews - [#](https://bendews.com)
 
-Project Link: [https://github.com/bendews/apw](https://github.com/bendews/apw)
+Project Link: [https://github.com/omt-global/apw-native](https://github.com/omt-global/apw-native)
 
 <!-- ACKNOWLEDGMENTS -->
 
@@ -168,14 +355,14 @@ Project Link: [https://github.com/bendews/apw](https://github.com/bendews/apw)
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/bendews/apw.svg?style=for-the-badge
-[contributors-url]: https://github.com/bendews/apw/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/bendews/apw.svg?style=for-the-badge
-[forks-url]: https://github.com/bendews/apw/network/members
-[stars-shield]: https://img.shields.io/github/stars/bendews/apw.svg?style=for-the-badge
-[stars-url]: https://github.com/bendews/apw/stargazers
-[issues-shield]: https://img.shields.io/github/issues/bendews/apw.svg?style=for-the-badge
-[issues-url]: https://github.com/bendews/apw/issues
-[license-shield]: https://img.shields.io/github/license/bendews/apw.svg?style=for-the-badge
-[license-url]: https://github.com/bendews/apw/blob/master/LICENSE.txt
+[contributors-shield]: https://img.shields.io/github/contributors/omt-global/apw-native.svg?style=for-the-badge
+[contributors-url]: https://github.com/omt-global/apw-native/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/omt-global/apw-native.svg?style=for-the-badge
+[forks-url]: https://github.com/omt-global/apw-native/network/members
+[stars-shield]: https://img.shields.io/github/stars/omt-global/apw-native.svg?style=for-the-badge
+[stars-url]: https://github.com/omt-global/apw-native/stargazers
+[issues-shield]: https://img.shields.io/github/issues/omt-global/apw-native.svg?style=for-the-badge
+[issues-url]: https://github.com/omt-global/apw-native/issues
+[license-shield]: https://img.shields.io/github/license/omt-global/apw-native.svg?style=for-the-badge
+[license-url]: https://github.com/omt-global/apw-native/blob/main/LICENSE
 [product-screenshot]: images/screenshot.png
