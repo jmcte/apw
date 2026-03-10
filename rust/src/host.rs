@@ -225,12 +225,19 @@ fn resolve_packaged_native_host_bundle() -> Result<PathBuf> {
         )
     })?;
     let executable_dir = current_exe.parent().ok_or_else(|| {
-        APWError::new(Status::InvalidConfig, "Unable to resolve executable directory.")
+        APWError::new(
+            Status::InvalidConfig,
+            "Unable to resolve executable directory.",
+        )
     })?;
 
     let mut candidates = vec![
-        executable_dir.join("../libexec").join(NATIVE_HOST_BUNDLE_NAME),
-        executable_dir.join("../../libexec").join(NATIVE_HOST_BUNDLE_NAME),
+        executable_dir
+            .join("../libexec")
+            .join(NATIVE_HOST_BUNDLE_NAME),
+        executable_dir
+            .join("../../libexec")
+            .join(NATIVE_HOST_BUNDLE_NAME),
         executable_dir
             .join("../../../native-host/dist")
             .join(NATIVE_HOST_BUNDLE_NAME),
@@ -333,7 +340,10 @@ fn native_host_preflight_state() -> (String, Option<String>, Option<String>) {
     if !helper_executable() {
         return (
             "helper_missing".to_string(),
-            Some("Apple PasswordManagerBrowserExtensionHelper is not executable on this host.".to_string()),
+            Some(
+                "Apple PasswordManagerBrowserExtensionHelper is not executable on this host."
+                    .to_string(),
+            ),
             bundle_version,
         );
     }
@@ -405,9 +415,7 @@ pub fn native_host_failure_message(base_message: &str) -> String {
         "ready" => {
             "Run `apw host doctor` and ensure the native host stays attached after `apw start`."
         }
-        _ => {
-            "Run `apw host doctor` for native host diagnostics."
-        }
+        _ => "Run `apw host doctor` for native host diagnostics.",
     };
 
     format!("{base_message} {guidance} Current `daemon.preflight.status={status}`.")

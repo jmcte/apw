@@ -495,7 +495,9 @@ fn parse_runtime_mode(raw: &str) -> std::result::Result<RuntimeMode, String> {
         "launchd" => RuntimeMode::Launchd,
         "disabled" => RuntimeMode::Disabled,
         _ => {
-            return Err("runtime mode must be one of auto|native|direct|launchd|disabled.".to_string());
+            return Err(
+                "runtime mode must be one of auto|native|direct|launchd|disabled.".to_string(),
+            );
         }
     })
 }

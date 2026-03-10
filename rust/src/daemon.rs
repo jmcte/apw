@@ -9,8 +9,8 @@ use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::future::Future;
 use std::fs;
+use std::future::Future;
 use std::io::ErrorKind;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
@@ -2037,9 +2037,7 @@ async fn run_native_host_accept_loop(bridge: BrowserBridge, listener: UnixListen
         };
 
         let identity = match hello {
-            BridgeFromBrowserMessage::Hello { browser, version } => {
-                version.unwrap_or(browser)
-            }
+            BridgeFromBrowserMessage::Hello { browser, version } => version.unwrap_or(browser),
             _ => {
                 eprintln!("Unexpected native host handshake message.");
                 continue;
@@ -2149,7 +2147,11 @@ async fn start_native_daemon_inner(options: DaemonOptions, host: String) -> Resu
     }
 
     ensure_native_host_runtime_dir()?;
-    let requested_port = if options.port == 0 { 10_000 } else { options.port };
+    let requested_port = if options.port == 0 {
+        10_000
+    } else {
+        options.port
+    };
     let socket_path = native_host_socket_path();
     if socket_path.exists() {
         let _ = fs::remove_file(&socket_path);
@@ -2461,7 +2463,10 @@ pub async fn start_daemon(options: DaemonOptions) -> Result<()> {
     let mut options = options;
     options.runtime_mode = resolve_runtime_mode(options.runtime_mode);
     let runtime_mode = options.runtime_mode;
-    let manifest = if matches!(options.runtime_mode, RuntimeMode::Browser | RuntimeMode::Native) {
+    let manifest = if matches!(
+        options.runtime_mode,
+        RuntimeMode::Browser | RuntimeMode::Native
+    ) {
         None
     } else {
         Some(read_manifest().map_err(|error| {
@@ -2805,10 +2810,7 @@ mod tests {
     #[serial]
     fn resolve_runtime_mode_auto_prefers_native_on_macos_26() {
         set_macos_major_override_for_tests(Some(26));
-        assert_eq!(
-            resolve_runtime_mode(RuntimeMode::Auto),
-            RuntimeMode::Native
-        );
+        assert_eq!(resolve_runtime_mode(RuntimeMode::Auto), RuntimeMode::Native);
         set_macos_major_override_for_tests(None);
     }
 
