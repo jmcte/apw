@@ -13,6 +13,8 @@ use std::fs;
 use std::future::Future;
 use std::io::ErrorKind;
 #[cfg(unix)]
+use std::os::fd::AsRawFd;
+#[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
 #[cfg(target_os = "macos")]
 use std::path::Path;
@@ -975,31 +977,6 @@ pub(crate) fn helper_preflight_failure_message(
     let status = helper_preflight_state_name(&preflight);
     let guidance = helper_preflight_guidance_from(&preflight);
     format!("{base_message} {guidance} Current `daemon.preflight.status={status}`.")
-}
-
-fn bridge_not_attached_message(
-    runtime_mode: RuntimeMode,
-    identity: Option<&str>,
-    status: &str,
-    last_error: Option<&str>,
-) -> String {
-    if runtime_mode == RuntimeMode::Native {
-        return match status {
-            BRIDGE_STATUS_DISCONNECTED => "Daemon is running in native host mode, but the APW native host disconnected. Run `apw host doctor`, then `apw start`, and wait for `apw status --json` to report `host.status=attached`.".to_string(),
-            BRIDGE_STATUS_ERROR => {
-                if let Some(error) = last_error {
-                    format!(
-                        "Daemon is running in native host mode, but the APW native host reported an error: {error}. Run `apw host doctor`, then `apw start`, and wait for `apw status --json` to report `host.status=attached`."
-                    )
-                } else {
-                    "Daemon is running in native host mode, but no APW native host is attached. Run `apw host install`, then `apw host doctor`, then `apw start`, and wait for `apw status --json` to report `host.status=attached`.".to_string()
-                }
-            }
-            _ => "Daemon is running in native host mode, but no APW native host is attached. Run `apw host install`, then `apw host doctor`, then `apw start`, and wait for `apw status --json` to report `host.status=attached`.".to_string(),
-        };
-    }
-
-    browser_bridge_not_attached_message(runtime_mode, identity, status, last_error)
 }
 
 fn capabilities_probe_message() -> Message {

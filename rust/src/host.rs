@@ -23,10 +23,6 @@ fn set_permissions(path: &Path, mode: u32) {
     let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
 }
 
-pub fn native_host_label() -> &'static str {
-    NATIVE_HOST_LABEL
-}
-
 pub fn native_host_run_dir() -> PathBuf {
     home_dir().join(".apw").join("run")
 }
