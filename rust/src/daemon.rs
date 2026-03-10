@@ -13,8 +13,6 @@ use std::fs;
 use std::future::Future;
 use std::io::ErrorKind;
 #[cfg(unix)]
-use std::os::fd::AsRawFd;
-#[cfg(unix)]
 use std::os::unix::process::ExitStatusExt;
 #[cfg(target_os = "macos")]
 use std::path::Path;
@@ -894,6 +892,12 @@ pub(crate) fn helper_preflight_status(configured_mode: RuntimeMode) -> Value {
 
     #[cfg(target_os = "macos")]
     let (manifest, status, error) = inspect_manifest_preflight();
+    #[cfg(not(target_os = "macos"))]
+    let (manifest, status, error) = (
+        empty_manifest_preflight(),
+        "unsupported_platform".to_string(),
+        Some("APW Helper manifest unsupported outside of macOS.".to_string()),
+    );
 
     json!({
         "supported": true,
@@ -995,7 +999,7 @@ fn bridge_not_attached_message(
         };
     }
 
-    browser_bridge_not_attached_message(identity, status, last_error)
+    browser_bridge_not_attached_message(runtime_mode, identity, status, last_error)
 }
 
 fn capabilities_probe_message() -> Message {
