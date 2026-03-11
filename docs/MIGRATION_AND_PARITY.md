@@ -43,6 +43,23 @@ and diagnostics are additive behind explicit JSON/status surfaces.
 - Direct and launchd-compatible native helper paths remain available as explicit
   diagnostic modes.
 
+## Native-only redesign boundary
+
+The project now has two explicitly different goals:
+
+1. Preserve the historical APW command contract for parity and audits.
+2. Design a browser-free native successor built only on public Apple APIs.
+
+Those are not the same target.
+
+The native-only redesign does not assume vault-wide password or OTP reads remain
+possible. Apple's supported native APIs are app-mediated and domain-scoped, so
+the redesign changes APW from a general iCloud Passwords CLI into a native
+credential broker with user-mediated flows.
+
+That redesign plan is tracked in
+[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
+
 ## Automated parity coverage
 
 Primary Rust gates:
@@ -94,3 +111,4 @@ Related docs:
 
 - [docs/INSTALLATION.md](/Users/johnteneyckjr./src/apw/docs/INSTALLATION.md)
 - [docs/SECURITY_POSTURE_AND_TESTING.md](/Users/johnteneyckjr./src/apw/docs/SECURITY_POSTURE_AND_TESTING.md)
+- [docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)

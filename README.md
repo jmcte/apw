@@ -15,6 +15,9 @@ password infrastructure on supported macOS versions.
 - Rust in [`rust/`](/Users/johnteneyckjr./src/apw/rust) is the only supported implementation.
 - The historical Deno code is archived under [`legacy/deno/`](/Users/johnteneyckjr./src/apw/legacy/deno) for parity audits and rollback reference only.
 - The project is macOS-first. Non-macOS execution fails fast with an explicit error.
+- Full iCloud Passwords parity currently still depends on Apple's browser-managed helper path.
+- The native companion host in this repository is a prototype transport layer, not yet a supported browser-free replacement for iCloud Passwords access on macOS 26.x.
+- The native-only redesign plan is tracked in [docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
 
 Archive policy: [docs/ARCHIVE_POLICY.md](/Users/johnteneyckjr./src/apw/docs/ARCHIVE_POLICY.md)
 
@@ -31,13 +34,16 @@ Archive policy: [docs/ARCHIVE_POLICY.md](/Users/johnteneyckjr./src/apw/docs/ARCH
 ## Support model
 
 - Supported target: macOS
-- Preferred runtime on macOS 26.x: native companion host mode
+- Current parity runtime on macOS 26.x: browser-managed helper path
+- Native companion host mode is a research/prototyping path and should not be treated as the parity default
 - Direct helper launch remains available as a diagnostic mode with `--runtime-mode direct` or `--runtime-mode launchd`
 - Unsupported target: non-macOS platforms
 
-On macOS 26.x, `auto` resolves to the native companion host instead of trying
-to launch Apple’s helper directly from the CLI. That is an OS/runtime
-compatibility choice, not a feature reduction.
+The native-only direction for this project is no longer "make the private Apple
+helper launch work without a browser." The supported redesign direction is a
+native macOS app-assisted credential flow built on public Apple APIs. That plan
+changes the product contract and is documented in
+[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
 
 ## Install
 
@@ -73,41 +79,18 @@ and publish a tagged release tarball. After a Homebrew install, run
 
 ## Quick start
 
-### macOS 26.x native host path
+### Current parity path
 
-1. Install the native host bundle and LaunchAgent:
+The maintained parity target for the historical APW command contract still uses
+Apple's browser-managed helper path. The browser/runtime bridge remains the
+reliable operational route when you need `auth`, `pw`, and `otp` behavior that
+matches the legacy project.
 
-```bash
-apw host install
-```
-
-2. Start the daemon:
-
-```bash
-apw start
-```
-
-3. Confirm host readiness:
-
-```bash
-apw status --json
-```
-
-Wait until `host.status` becomes `"attached"` before expecting auth or
-password/OTP commands to work through the native-host path.
-
-4. Authenticate:
-
-```bash
-apw auth
-```
-
-5. Query data:
-
-```bash
-apw pw
-apw otp
-```
+For the native-only successor direction, do not treat the current native host as
+production closure. Read
+[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
+first; that plan intentionally changes the contract from "vault reader" to
+"app-assisted credential broker."
 
 ### Direct helper diagnostics
 
@@ -174,6 +157,9 @@ behavior comparison.
 
 Parity and archive details:
 [docs/MIGRATION_AND_PARITY.md](/Users/johnteneyckjr./src/apw/docs/MIGRATION_AND_PARITY.md)
+
+Native-only redesign details:
+[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
 
 ## License
 
