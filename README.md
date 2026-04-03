@@ -1,49 +1,46 @@
 # APW Native
 
-Rust-first, macOS-first CLI and daemon for reading Apple Passwords and one-time
-codes from the command line.
+Rust-first, macOS-first CLI and local app broker for mediated credential access
+from the command line.
 
-Release reference version: `v1.2.0`
+Release reference version: `v2.0.0`
 
-`apw` is the installed executable name.
+`apw` remains the installed executable name.
 
 This project is not affiliated with Apple. It interoperates with Apple-provided
 password infrastructure on supported macOS versions.
 
 ## Project status
 
-- Rust in [`rust/`](/Users/johnteneyckjr./src/apw/rust) is the only supported implementation.
+- `main` now tracks the `v2.0.0` native-only redesign line.
+- Rust in [`rust/`](/Users/johnteneyckjr./src/apw/rust) remains the maintained CLI.
+- `native-app/` is the new primary runtime surface for the app-assisted broker.
 - The historical Deno code is archived under [`legacy/deno/`](/Users/johnteneyckjr./src/apw/legacy/deno) for parity audits and rollback reference only.
-- The project is macOS-first. Non-macOS execution fails fast with an explicit error.
-- Full iCloud Passwords parity currently still depends on Apple's browser-managed helper path.
-- The native companion host in this repository is a prototype transport layer, not yet a supported browser-free replacement for iCloud Passwords access on macOS 26.x.
-- The native-only redesign plan is tracked in [docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
+- Legacy daemon/browser-helper code remains in-tree only to preserve the historical `v1.x` parity line during migration.
+- The command migration matrix is tracked in [docs/NATIVE_MIGRATION.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_MIGRATION.md).
 
 Archive policy: [docs/ARCHIVE_POLICY.md](/Users/johnteneyckjr./src/apw/docs/ARCHIVE_POLICY.md)
 
 ## What APW does
 
-- Starts a local daemon with `apw start`
-- Authenticates an Apple Passwords session with `apw auth`
-- Supports explicit request/response auth flows with `apw auth request` and `apw auth response`
-- Lists and retrieves passwords with `apw pw`
-- Lists and retrieves one-time codes with `apw otp`
-- Reports daemon, host, bridge-alias, and session health with `apw status` and `apw status --json`
-- Clears persisted session material with `apw auth logout`
+- Installs the APW macOS app bundle with `apw app install`
+- Launches the local APW broker with `apw app launch`
+- Reports app, broker, and legacy runtime health with `apw status` and `apw status --json`
+- Reports bootstrap diagnostics with `apw doctor`
+- Returns an app-mediated credential for a supported domain with `apw login <url>`
 
 ## Support model
 
 - Supported target: macOS
-- Current parity runtime on macOS 26.x: browser-managed helper path
-- Native companion host mode is a research/prototyping path and should not be treated as the parity default
-- Direct helper launch remains available as a diagnostic mode with `--runtime-mode direct` or `--runtime-mode launchd`
+- Current primary runtime on macOS: the APW local app broker
+- Historical parity runtime: legacy daemon/browser-helper code retained for migration only
+- Legacy direct/native/browser runtime modes remain available only for the `v1.x` compatibility path
 - Unsupported target: non-macOS platforms
 
-The native-only direction for this project is no longer "make the private Apple
-helper launch work without a browser." The supported redesign direction is a
-native macOS app-assisted credential flow built on public Apple APIs. That plan
-changes the product contract and is documented in
-[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
+Detailed migration and redesign notes:
+
+- [docs/NATIVE_MIGRATION.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_MIGRATION.md)
+- [docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
 
 ## Install
 
@@ -53,15 +50,15 @@ Detailed instructions: [docs/INSTALLATION.md](/Users/johnteneyckjr./src/apw/docs
 
 ```bash
 cargo build --manifest-path rust/Cargo.toml --release
-./scripts/build-native-host.sh
+./scripts/build-native-app.sh
 ```
 
 ### Install with Cargo
 
 ```bash
 cargo install --path rust --locked
-./scripts/build-native-host.sh
-apw host install
+./scripts/build-native-app.sh
+apw app install
 ```
 
 ### Homebrew
@@ -72,70 +69,54 @@ For local formula validation from this checkout:
 ./packaging/homebrew/install-from-source.sh
 ```
 
-For a public tap/release flow, use the formula template in
-[`packaging/homebrew/apw.rb`](/Users/johnteneyckjr./src/apw/packaging/homebrew/apw.rb)
-and publish a tagged release tarball. After a Homebrew install, run
-`apw host install` once per user to install the LaunchAgent-backed native host.
+The formula template is kept in
+[`packaging/homebrew/apw.rb`](/Users/johnteneyckjr./src/apw/packaging/homebrew/apw.rb).
 
 ## Quick start
 
-### Current parity path
-
-The maintained parity target for the historical APW command contract still uses
-Apple's browser-managed helper path. The browser/runtime bridge remains the
-reliable operational route when you need `auth`, `pw`, and `otp` behavior that
-matches the legacy project.
-
-For the native-only successor direction, do not treat the current native host as
-production closure. Read
-[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
-first; that plan intentionally changes the contract from "vault reader" to
-"app-assisted credential broker."
-
-### Direct helper diagnostics
-
-If you need to diagnose native host launch behavior directly:
+The supported `v2.0.0` bootstrap flow is app-first:
 
 ```bash
-apw start --runtime-mode direct --dry-run
-apw status --json
+./scripts/build-native-app.sh
+apw app install
+apw app launch
+apw doctor --json
+apw login https://example.com
 ```
 
-The JSON status output now includes `daemon.preflight`, which reports:
-
-- resolved runtime mode
-- candidate launch strategies
-- native host readiness
-- LaunchAgent and app bundle state
-- helper binary path and executability
-- machine-readable failure reason when the native host is not viable
+The current bootstrap domain is `https://example.com`. The APW app uses a
+same-user local broker socket and explicit approval UI for the returned
+credential flow.
 
 ## Common commands
 
 ```bash
 apw --help
-apw host install
-apw host doctor --json
-apw host uninstall
-apw start
-apw start --bind 127.0.0.1 --port 10000
+apw app install
+apw app launch
+apw doctor
 apw status
 apw status --json
+apw login https://example.com
+```
+
+Legacy migration commands remain available in the repo:
+
+```bash
+apw start
 apw auth
-apw auth request
-apw auth response --pin 123456 --salt <salt> --server_key <server_key> --client_key <client_key> --username <username>
-apw auth logout
 apw pw
 apw otp
+apw host doctor --json
 ```
 
 ## Security and storage
 
-- APW stores config in `~/.apw/config.json`
+- APW stores legacy runtime config in `~/.apw/config.json`
+- The v2 app broker stores bootstrap runtime state under `~/.apw/native-app/`
 - `~/.apw` is created with mode `0700`
-- `config.json` is written atomically with mode `0600`
-- On supported macOS paths, session secret material is stored in the user keychain and config keeps metadata such as `secretSource`
-- Invalid, malformed, or stale config is cleared and requires re-authentication
+- config and status files are written with mode `0600`
+- Legacy session secret material is stored in the user keychain when the `v1.x` compatibility path is used
 - Transport, parser, and status errors are returned as typed failures instead of silent partial output
 
 Security and release validation guidance:
@@ -143,23 +124,25 @@ Security and release validation guidance:
 
 ## Repository layout
 
-- [`rust/`](/Users/johnteneyckjr./src/apw/rust): supported CLI, daemon, transport, SRP, and packaging target
-- `native-host/`: packaged macOS companion host used on modern macOS native mode
-- [`browser-bridge/`](/Users/johnteneyckjr./src/apw/browser-bridge): legacy bridge retained only during native-host transition
+- [`rust/`](/Users/johnteneyckjr./src/apw/rust): supported CLI, legacy daemon, migration scaffolding, and packaging target
+- `native-app/`: v2 bootstrap macOS app bundle and local broker service
+- `native-host/`: legacy macOS companion host from the parity line
+- [`browser-bridge/`](/Users/johnteneyckjr./src/apw/browser-bridge): legacy bridge retained only during migration
 - [`legacy/deno/`](/Users/johnteneyckjr./src/apw/legacy/deno): archived compatibility reference
 - [`packaging/homebrew/`](/Users/johnteneyckjr./src/apw/packaging/homebrew): Homebrew formula and local install helpers
 - [`docs/`](/Users/johnteneyckjr./src/apw/docs): installation, migration, archive, security, and breakout docs
 
 ## Parity and migration
 
-Rust is the maintained path. The Deno implementation remains only for audit and
+Rust is still the maintained CLI path, but the active product contract is now
+the native app broker. The Deno implementation remains only for audit and
 behavior comparison.
 
 Parity and archive details:
 [docs/MIGRATION_AND_PARITY.md](/Users/johnteneyckjr./src/apw/docs/MIGRATION_AND_PARITY.md)
 
-Native-only redesign details:
-[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
+Migration details:
+[docs/NATIVE_MIGRATION.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_MIGRATION.md)
 
 ## License
 

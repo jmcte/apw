@@ -1,6 +1,6 @@
 # Native-only APW redesign
 
-Status: planned next-action spec
+Status: bootstrap implementation in progress
 
 Target release line: `v2.0.0`
 

@@ -5,12 +5,13 @@ mod client;
 mod daemon;
 mod error;
 mod host;
+mod native_app;
 mod secrets;
 mod srp;
 mod types;
 mod utils;
 
-const APP_VERSION: &str = "1.2.0";
+const APP_VERSION: &str = "2.0.0";
 
 use cli::{run, Cli};
 use client::ApplePasswordManager;

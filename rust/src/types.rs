@@ -13,7 +13,7 @@ use std::fmt;
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 10_000;
-pub const VERSION: &str = "1.2.0";
+pub const VERSION: &str = "2.0.0";
 pub const MAX_MESSAGE_BYTES: usize = 16 * 1024;
 const CONFIG_SCHEMA: i32 = 1;
 

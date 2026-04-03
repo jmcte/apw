@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "APW Chrome Bridge",
   "description": "Connect the APW daemon to Apple's PasswordManagerBrowserExtensionHelper through Chrome native messaging.",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmgjNPGuNapRScZ3JMHEl+++D4WjVYhG1kKVVww6ZgG8Mc++7xY6+fX9+or8Z8HWNk1bLmbl+SxlTsgy10xx0hDYJLXCxlE5GMwx2q0sq7/hYq9RHvFC6EM9RnlhwW+M+CHNrk3OqZABjBLciwYu42o6WJ4Ul5xTPpdvwVpO4RRk+UoyE9Aput4QGm9HXVFXLZ2uc1N8yBzIrULJbxsAZMFX3SLWOitprM4UevAdqCC5fZPu390VGXlSxa8OFSYUZixmuhPXkaBUPRIzoNF7PPw+As9FYV4sFQ+eYj4tDmFSdIjD+YRjgio1MUSKHzK5Hg/R2KuYijSNUIbASNRgd4wIDAQAB",
   "permissions": [

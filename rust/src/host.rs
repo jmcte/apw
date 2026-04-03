@@ -710,7 +710,7 @@ mod tests {
 <plist version="1.0">
 <dict>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.0</string>
+  <string>2.0.0</string>
 </dict>
 </plist>
 "#,
@@ -761,7 +761,7 @@ mod tests {
 
             assert_eq!(payload["status"], "installed");
             assert_eq!(payload["preflight"]["status"], "ready");
-            assert_eq!(payload["preflight"]["appBundle"]["version"], "1.2.0");
+            assert_eq!(payload["preflight"]["appBundle"]["version"], "2.0.0");
             assert!(installed_bundle.exists());
             assert!(native_host_executable_in_bundle(&installed_bundle).exists());
             assert!(launch_agent.exists());

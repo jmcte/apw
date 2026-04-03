@@ -79,18 +79,22 @@ if [ ! -f "$CARGO_MANIFEST" ]; then
   exit 1
 fi
 
-printf '\n[1/4] Building release binary...\n'
+printf '\n[1/4] Building APW app bundle...\n'
+cd "$ROOT_DIR"
+"$ROOT_DIR/scripts/build-native-app.sh"
+
+printf '\n[2/4] Building release binary...\n'
 cd "$ROOT_DIR"
 cargo build --manifest-path "$CARGO_MANIFEST" --release
 
 if [ "$SKIP_VERSION_CHECK" -ne 1 ]; then
-  printf '\n[2/4] Validating binary health...\n'
+  printf '\n[3/4] Validating binary health...\n'
   "$BIN_PATH" --version
   "$BIN_PATH" status --json
 fi
 
 if [ "$INSTALL_BIN" -eq 1 ]; then
-  printf '\n[3/4] Installing to %s...\n' "$INSTALL_DIR"
+  printf '\n[4/4] Installing to %s...\n' "$INSTALL_DIR"
   if [ ! -d "$INSTALL_DIR" ]; then
     echo "Install directory does not exist: $INSTALL_DIR"
     exit 1
@@ -102,7 +106,7 @@ if [ "$INSTALL_BIN" -eq 1 ]; then
 fi
 
 if [ "$BREW_SMOKE" -eq 1 ]; then
-  printf '\n[4/4] Running Homebrew source smoke test...\n'
+  printf '\n[5/5] Running Homebrew source smoke test...\n'
   if [ -f "$ROOT_DIR/packaging/homebrew/install-from-source.sh" ]; then
     "$ROOT_DIR/packaging/homebrew/install-from-source.sh"
   else

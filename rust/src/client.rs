@@ -3,6 +3,7 @@ use crate::daemon::{
 };
 use crate::error::{APWError, Result};
 use crate::host::{native_host_failure_message, native_host_status_note};
+use crate::native_app::native_app_status;
 use crate::srp::{
     base64_decode_numeric, build_client_key_exchange, build_client_verification_message,
     is_valid_pake_message, parse_pake_message_type, SRPSession, SessionValues,
@@ -1092,7 +1093,15 @@ impl ApplePasswordManager {
             None
         };
 
+        let app_status = native_app_status();
+
         json!({
+          "releaseLine": {
+            "target": "v2.0.0",
+            "legacyParityRetained": true,
+            "primaryContract": "credential_broker"
+          },
+          "app": app_status,
           "daemon": {
             "host": config.host,
             "port": config.port,

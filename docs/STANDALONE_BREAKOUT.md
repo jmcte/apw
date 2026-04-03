@@ -3,7 +3,7 @@
 This document describes how to take APW from an upstream fork to a standalone
 public project while keeping the Rust implementation as the supported path.
 
-Release reference version: `v1.2.0`
+Release reference version: `v2.0.0`
 
 ## Goal
 

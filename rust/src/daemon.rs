@@ -2660,7 +2660,7 @@ mod tests {
 <plist version="1.0">
 <dict>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.0</string>
+  <string>2.0.0</string>
 </dict>
 </plist>
 "#,
@@ -3376,7 +3376,7 @@ mod tests {
                 status["host"]["lastError"],
                 json!("Native host disconnected for test.")
             );
-            assert_eq!(status["host"]["bundleVersion"], json!("1.2.0"));
+            assert_eq!(status["host"]["bundleVersion"], json!("2.0.0"));
             assert_eq!(
                 status["bridge"]["status"],
                 json!(BRIDGE_STATUS_DISCONNECTED)

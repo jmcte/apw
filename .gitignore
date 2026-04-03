@@ -22,6 +22,9 @@ dist
 target
 rust/target
 build/
+native-app/.build/
+native-app/dist/
+native-host/.build/
 
 # Legacy Deno archive outputs
 legacy/deno/target

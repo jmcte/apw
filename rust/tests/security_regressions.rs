@@ -123,6 +123,9 @@ fn status_json_has_stable_shape() {
         );
         let output = parse_json_output(&stdout);
         assert_eq!(output["ok"], true);
+        assert_eq!(output["payload"]["releaseLine"]["target"], "v2.0.0");
+        assert!(output["payload"]["app"].is_object());
+        assert_eq!(output["payload"]["app"]["installed"], false);
         assert!(output["payload"]["daemon"]["host"].is_string());
         assert!(output["payload"]["daemon"]["port"].is_u64());
         assert!(output["payload"]["host"].is_object());

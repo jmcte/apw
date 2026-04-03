@@ -2,6 +2,9 @@ use crate::client::ApplePasswordManager;
 use crate::daemon::{start_daemon, DaemonOptions};
 use crate::error::APWError;
 use crate::host::{native_host_doctor, native_host_install, native_host_uninstall};
+use crate::native_app::{
+    native_app_doctor, native_app_install, native_app_launch, native_app_login,
+};
 use crate::types::{Payload, RenamedPasswordEntry, RuntimeMode, Status, TOTPEntry};
 use crate::utils::{bigint_to_base64, read_bigint};
 use clap::{Args, Parser, Subcommand};
@@ -85,7 +88,7 @@ fn sanitize_url(raw: &str) -> Result<String, APWError> {
         ));
     }
 
-    Ok(trimmed.to_string())
+    Ok(candidate)
 }
 
 fn print_output(payload: &serde_json::Value, status: Status, json_output: bool) {
@@ -207,7 +210,7 @@ fn ask_otp_action() -> Result<OtpAction, APWError> {
 
 #[derive(Parser)]
 #[command(name = "apw")]
-#[command(version = "1.2.0")]
+#[command(version = "2.0.0")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -217,12 +220,35 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    App(AppCommand),
     Auth(AuthCommand),
+    Doctor(DoctorCommand),
     Host(HostCommand),
+    Login(LoginCommand),
     Pw(PwCommand),
     Otp(OtpCommand),
     Start(StartCommand),
     Status(StatusCommand),
+}
+
+#[derive(Args)]
+pub struct AppCommand {
+    #[command(subcommand)]
+    pub command: AppSubcommand,
+}
+
+#[derive(Subcommand)]
+pub enum AppSubcommand {
+    Install,
+    Launch,
+}
+
+#[derive(Args, Default)]
+pub struct DoctorCommand {}
+
+#[derive(Args)]
+pub struct LoginCommand {
+    pub url: String,
 }
 
 #[derive(Args)]
@@ -328,13 +354,37 @@ pub struct StatusCommand {
 
 pub async fn run(mut manager: ApplePasswordManager, cli: Cli) -> Result<(), APWError> {
     match cli.command {
+        Commands::App(args) => run_app(args, cli.json),
         Commands::Auth(args) => run_auth(&mut manager, args, cli.json),
+        Commands::Doctor(args) => run_doctor(args, cli.json),
         Commands::Host(args) => run_host(args, cli.json),
+        Commands::Login(args) => run_login(args, cli.json),
         Commands::Pw(args) => run_pw(&mut manager, args, cli.json),
         Commands::Otp(args) => run_otp(&mut manager, args, cli.json),
         Commands::Start(args) => run_start(args).await,
         Commands::Status(args) => run_status(&mut manager, args, cli.json),
     }
+}
+
+fn run_app(args: AppCommand, cli_json: bool) -> Result<(), APWError> {
+    let payload = match args.command {
+        AppSubcommand::Install => native_app_install()?,
+        AppSubcommand::Launch => native_app_launch()?,
+    };
+    print_output(&payload, Status::Success, cli_json);
+    Ok(())
+}
+
+fn run_doctor(_args: DoctorCommand, cli_json: bool) -> Result<(), APWError> {
+    let payload = native_app_doctor()?;
+    print_output(&payload, Status::Success, cli_json);
+    Ok(())
+}
+
+fn run_login(args: LoginCommand, cli_json: bool) -> Result<(), APWError> {
+    let payload = native_app_login(&sanitize_url(&args.url)?)?;
+    print_output(&payload, Status::Success, cli_json);
+    Ok(())
 }
 
 fn run_status(
@@ -536,7 +586,7 @@ mod tests {
 
     #[test]
     fn parse_url_is_optional_https_default() {
-        assert_eq!(sanitize_url("example.com").unwrap(), "example.com");
+        assert_eq!(sanitize_url("example.com").unwrap(), "https://example.com");
         assert!(sanitize_url("not a url").is_err());
     }
 
@@ -765,5 +815,37 @@ mod tests {
         let result = print_entries(&payload, false);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().code, Status::NoResults);
+    }
+
+    #[test]
+    fn app_install_command_parses() {
+        let parsed = Cli::try_parse_from(["apw", "app", "install"]).unwrap();
+        match parsed.command {
+            Commands::App(app) => match app.command {
+                AppSubcommand::Install => {}
+                _ => panic!("expected app install command"),
+            },
+            _ => panic!("expected app command"),
+        }
+    }
+
+    #[test]
+    fn doctor_command_parses() {
+        let parsed = Cli::try_parse_from(["apw", "doctor"]).unwrap();
+        match parsed.command {
+            Commands::Doctor(_) => {}
+            _ => panic!("expected doctor command"),
+        }
+    }
+
+    #[test]
+    fn login_command_parses() {
+        let parsed = Cli::try_parse_from(["apw", "login", "https://example.com"]).unwrap();
+        match parsed.command {
+            Commands::Login(login) => {
+                assert_eq!(login.url, "https://example.com");
+            }
+            _ => panic!("expected login command"),
+        }
     }
 }

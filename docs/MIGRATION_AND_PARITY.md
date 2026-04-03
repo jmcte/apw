@@ -1,66 +1,35 @@
 # Rust migration and parity
 
-APW now treats the Rust implementation as the only supported runtime and release
-path.
+APW now treats the Rust CLI plus local APW app broker as the primary `v2.0.0`
+runtime. The historical parity line remains preserved for migration and audit
+work.
 
-Release reference version: `v1.2.0`
+Release reference version: `v2.0.0`
 
 ## Current maintenance policy
 
-- Supported implementation: [`rust/`](/Users/johnteneyckjr./src/apw/rust)
+- Supported v2 implementation: [`rust/`](/Users/johnteneyckjr./src/apw/rust) + `native-app/`
 - Archived implementation: [`legacy/deno/`](/Users/johnteneyckjr./src/apw/legacy/deno)
-- Packaging, release, fixes, and hardening land only in Rust
-- The Deno archive exists for historical inspection and compatibility review only
+- Packaging, release, fixes, and hardening land in the Rust CLI and native app
+- Legacy daemon/browser-helper code remains in-tree for migration only
 
 Archive rules: [docs/ARCHIVE_POLICY.md](/Users/johnteneyckjr./src/apw/docs/ARCHIVE_POLICY.md)
 
 ## Parity target
 
-The compatibility target is the public command contract from the historical Deno
-CLI, not the old implementation details.
+The compatibility target for `v1.x` remains the public command contract from
+the historical Deno CLI, not the old implementation details.
 
-Rust currently covers the same operational surface for:
+The `v2.0.0` line intentionally changes that contract:
 
-- `auth request`
-- `auth response`
-- `auth logout`
-- `status`
-- `start`
-- `pw list`
-- `pw get`
-- `otp list`
-- `otp get`
+- app-assisted credential requests replace the primary auth flow
+- vault-wide password listing is no longer a primary goal
+- OTP parity is not guaranteed
 
-The default human-facing command behavior remains the contract. Structured output
-and diagnostics are additive behind explicit JSON/status surfaces.
+The command migration matrix is tracked in
+[docs/NATIVE_MIGRATION.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_MIGRATION.md).
 
-## Known compatibility framing
-
-- On modern macOS, `auto` resolves to native companion-host mode because direct
-  helper launch is not always permitted from the CLI parent process.
-- This is treated as an operational compatibility bridge, not a removal of CLI
-  behavior.
-- Direct and launchd-compatible native helper paths remain available as explicit
-  diagnostic modes.
-
-## Native-only redesign boundary
-
-The project now has two explicitly different goals:
-
-1. Preserve the historical APW command contract for parity and audits.
-2. Design a browser-free native successor built only on public Apple APIs.
-
-Those are not the same target.
-
-The native-only redesign does not assume vault-wide password or OTP reads remain
-possible. Apple's supported native APIs are app-mediated and domain-scoped, so
-the redesign changes APW from a general iCloud Passwords CLI into a native
-credential broker with user-mediated flows.
-
-That redesign plan is tracked in
-[docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md).
-
-## Automated parity coverage
+## Automated coverage
 
 Primary Rust gates:
 
@@ -76,39 +45,18 @@ Legacy parity harness:
 cargo test --manifest-path rust/Cargo.toml --test legacy_parity
 ```
 
-The parity suite exercises the Rust CLI against preserved legacy fixtures for:
-
-- auth request shape
-- auth response failure mapping
-- status JSON shape
-- password and OTP query behavior
-- command matrix expectations
-
-## Optional archive audit
-
-If you still have Deno installed and want a direct historical spot-check, the
-archived implementation can be run manually:
-
-```bash
-cd legacy/deno
-deno test --allow-env --allow-read --allow-write --allow-net src/*.test.ts
-```
-
-This is an audit path only. It is not part of the supported runtime or release
-flow.
-
 ## Release expectations
 
 Before tagging a public release:
 
 1. Keep versioned surfaces in sync
 2. Run the Rust gates
-3. Run the parity harness
+3. Run the parity harness as a migration safeguard
 4. Run the security regression matrix
-5. Publish only from the Rust path
+5. Build the app bundle with `./scripts/build-native-app.sh`
 
 Related docs:
 
 - [docs/INSTALLATION.md](/Users/johnteneyckjr./src/apw/docs/INSTALLATION.md)
 - [docs/SECURITY_POSTURE_AND_TESTING.md](/Users/johnteneyckjr./src/apw/docs/SECURITY_POSTURE_AND_TESTING.md)
-- [docs/NATIVE_ONLY_REDESIGN.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_ONLY_REDESIGN.md)
+- [docs/NATIVE_MIGRATION.md](/Users/johnteneyckjr./src/apw/docs/NATIVE_MIGRATION.md)
